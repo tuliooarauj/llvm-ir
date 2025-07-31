@@ -128,7 +128,6 @@ srem i32 <op1>, <op2>
 
 A lógica condicional `if (temp % 2 == 0)` cria no IR **quatro blocos básicos** distintos na função `@calcula`:
 
----
 
 ### 1. **Bloco de condição**
 
@@ -140,7 +139,7 @@ Avalia `temp % 2 == 0` e decide o salto condicional:
 br i1 %9, label %10, label %13
 ```
 
----
+
 
 ### 2. **Bloco `%10` (condição verdadeira)**
 
@@ -153,7 +152,6 @@ store i32 %12, ptr %2, align 4
 br label %16
 ```
 
----
 
 ### 3. **Bloco `%13` (condição falsa)**
 
@@ -166,7 +164,6 @@ store i32 %15, ptr %2, align 4
 br label %16
 ```
 
----
 
 ### 4. **Bloco `%16` (bloco de saída)**
 
@@ -176,6 +173,84 @@ Unifica os fluxos de controle e retorna o valor calculado:
 %17 = load i32, ptr %2, align 4
 ret i32 %17
 ```
----
 
 # Otimização com opt
+
+## Pergunta 1: Que mudanças ocorreram na função `main` após a otimização?
+
+A função `main` **permanece praticamente inalterada**. 
+### Mudanças observadas:
+
+ A função foi marcada como `local_unnamed_addr`, o que **não altera a lógica**, mas permite mais agressivas otimizações de endereço (indica que o endereço da função não importa).
+ **Nenhuma eliminação ou fusão de instruções intermediárias** foi realizada nessa versão otimizada.
+
+## Pergunta 2: Alguma função foi *inlined* (inserida diretamente)? Como identificar?
+
+Não. Nenhuma função foi *inlined*.
+
+As funções auxiliares (`soma`, `multiplica`, `calcula`) continuam sendo **chamadas externamente**, ou seja, **não foram embutidas** no corpo de `main`.
+
+ A função `main` ainda contém:
+  ```llvm
+  %3 = call i32 @calcula(i32 noundef 7)
+  ```
+  O que indica chamada real à função `@calcula`, e não substituição por seu corpo.
+
+ As funções auxiliares (`@soma`, `@multiplica`, `@calcula`) também estão **definidas normalmente** no IR, e não foram marcadas como `alwaysinline` nem otimizadas fora.
+
+## Pergunta 3: Alguma variável intermediária foi eliminada? Por quê?
+
+Nenhuma variável intermediária foi eliminada no `main`.
+
+ O código está **com os atributos `optnone`**, o que **desativa otimizações mesmo após uso de `opt`**, a menos que o atributo seja removido.
+A flag `noinline` também impede *inlining*.
+
+
+# Visualizando o Grafo de Fluxo de Controle (CFG)
+
+![CFG da função calcula](calcula_cfg.png)
+
+
+## 1. Quantos blocos básicos você consegue identificar na função `calcula`?
+
+Identificamos **quatro blocos básicos** no grafo:
+
+1. **Bloco `%1`**: bloco de entrada e avaliação da condição (`temp % 2 == 0`)
+2. **Bloco `%10`**: ramo do `if` (condição verdadeira)
+3. **Bloco `%13`**: ramo do `else` (condição falsa)
+4. **Bloco `%16`**: bloco final de retorno
+
+
+## 2. Quais são os caminhos possíveis a partir da condição `if (temp % 2 == 0)`?
+
+A condição está implementada no **bloco `%1`**, que avalia:
+
+```llvm
+%8 = srem i32 %7, 2
+%9 = icmp eq i32 %8, 0
+br i1 %9, label %10, label %13
+```
+
+### Caminhos possíveis:
+
+Se a condição **for verdadeira** (`temp % 2 == 0`): o fluxo segue para o **bloco `%10`**
+Se a condição **for falsa**: o fluxo segue para o **bloco `%13`**
+
+Ambos os caminhos convergem no **bloco `%16`** após suas execuções.
+
+## 3. O fluxo de controle inclui blocos de erro ou casos não triviais (e.g., retorno precoce)?
+
+### Não.
+
+Não há blocos que interrompem o fluxo abruptamente (como `return` antecipado ou `unreachable`). Não há checagens de erro dentro da função `calcula` no CFG mostrado. A função segue um fluxo **linear com bifurcação simples**, com reconvergência no final.
+
+## 4. Há blocos com apenas instruções de salto? O que você imagina que isso indica?
+
+Sim: o **bloco `%16`** tem apenas:
+
+```llvm
+%17 = load i32, ptr %2, align 4
+ret i32 %17
+```
+
+É um bloco que só faz o carregamento da variável de resultado e a retorn. Não realiza mais cálculos ou condições, além de que é um ponto de convergência: tanto `%10` quanto `%13` terminam com `br label %16`.
