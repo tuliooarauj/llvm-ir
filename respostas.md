@@ -1,3 +1,5 @@
+# Código C e Geração de IR
+
 ##  Pergunta 1: Como estão representadas as funções `soma`, `multiplica` e `calcula` em IR?
 
 No LLVM IR, as funções do código C são representadas pela diretiva `define`, com os tipos de entrada, retorno e as instruções em linguagem intermediária. Cada parâmetro é identificado por `%` seguido de um número (ex: `%0`, `%1`), e as instruções são expressas em estilo SSA.
@@ -90,3 +92,90 @@ store i32 %8, ptr %2, align 4
 %11 = call i32 @soma(i32 noundef %10, i32 noundef 5)
 store i32 %11, ptr %2, align 4
 ```
+
+# Modificação do Código
+
+## Pergunta 1: Como o `if (temp % 2 == 0)` aparece no IR?
+
+No LLVM IR, essa condição é decomposta em duas partes:
+1. O cálculo do módulo (`temp % 2`)
+2. A comparação se o resultado é igual a zero
+
+### Trecho do IR correspondente:
+
+```llvm
+%8 = srem i32 %7, 2
+%9 = icmp eq i32 %8, 0
+br i1 %9, label %10, label %13
+```
+---
+
+## Pergunta 2: Como o operador `%` (módulo) é representado no LLVM IR?
+
+O operador `%` é representado no LLVM IR pela instrução:
+
+```llvm
+srem i32 <op1>, <op2>
+```
+
+### Exemplo no IR:
+
+```llvm
+%7 = srem i32 %6, 2
+```
+
+## Pergunta 3: Quais são os blocos básicos criados pela nova lógica condicional?
+
+A lógica condicional `if (temp % 2 == 0)` cria no IR **quatro blocos básicos** distintos na função `@calcula`:
+
+---
+
+### 1. **Bloco de condição**
+
+Avalia `temp % 2 == 0` e decide o salto condicional:
+
+```llvm
+%8 = srem i32 %7, 2
+%9 = icmp eq i32 %8, 0
+br i1 %9, label %10, label %13
+```
+
+---
+
+### 2. **Bloco `%10` (condição verdadeira)**
+
+Executa `multiplica(temp, 4)`:
+
+```llvm
+%11 = load i32, ptr %4, align 4
+%12 = call i32 @multiplica(i32 noundef %11, i32 noundef 4)
+store i32 %12, ptr %2, align 4
+br label %16
+```
+
+---
+
+### 3. **Bloco `%13` (condição falsa)**
+
+Executa `divide(temp, 2)`:
+
+```llvm
+%14 = load i32, ptr %4, align 4
+%15 = call i32 @divide(i32 noundef %14, i32 noundef 2)
+store i32 %15, ptr %2, align 4
+br label %16
+```
+
+---
+
+### 4. **Bloco `%16` (bloco de saída)**
+
+Unifica os fluxos de controle e retorna o valor calculado:
+
+```llvm
+%17 = load i32, ptr %2, align 4
+ret i32 %17
+```
+---
+
+# Otimização com opt
