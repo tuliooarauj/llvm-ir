@@ -2,7 +2,7 @@
 
 No LLVM IR, as funções do código C são representadas pela diretiva `define`, com os tipos de entrada, retorno e as instruções em linguagem intermediária. Cada parâmetro é identificado por `%` seguido de um número (ex: `%0`, `%1`), e as instruções são expressas em estilo SSA.
 
-### 🔹 Função `soma`:
+### Função `soma`:
 
 ```llvm
 define dso_local i32 @soma(i32 noundef %0, i32 noundef %1) #0 {
@@ -17,7 +17,7 @@ define dso_local i32 @soma(i32 noundef %0, i32 noundef %1) #0 {
 }
 ```
 
-### 🔹 Função `multiplica`:
+### Função `multiplica`:
 
 ```llvm
 define dso_local i32 @multiplica(i32 noundef %0, i32 noundef %1) #0 {
@@ -32,7 +32,7 @@ define dso_local i32 @multiplica(i32 noundef %0, i32 noundef %1) #0 {
 }
 ```
 
-### 🔹 Função `calcula`:
+### Função `calcula`:
 
 ```llvm
 define dso_local i32 @calcula(i32 noundef %0) #0 {
@@ -75,7 +75,7 @@ br i1 %5, label %6, label %9
 
 As chamadas às funções auxiliares como `soma` e `multiplica` são representadas com a instrução `call`, especificando a função, os tipos de parâmetros e os valores passados.
 
-### 🔹 Chamada à função `multiplica`:
+### Chamada à função `multiplica`:
 
 ```llvm
 %7 = load i32, ptr %3, align 4
@@ -83,7 +83,7 @@ As chamadas às funções auxiliares como `soma` e `multiplica` são representad
 store i32 %8, ptr %2, align 4
 ```
 
-### 🔹 Chamada à função `soma`:
+### Chamada à função `soma`:
 
 ```llvm
 %10 = load i32, ptr %3, align 4
